@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help Center</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="script.js" defer></script>
+</head>
+<body>
+    <main>
+        <header class="hero">
+            
+            <h1><svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#e3e3e3"><path d="M880-80 720-240H320q-33 0-56.5-23.5T240-320v-40h440q33 0 56.5-23.5T760-440v-280h40q33 0 56.5 23.5T880-640v560ZM160-473l47-47h393v-280H160v327ZM80-280v-520q0-33 23.5-56.5T160-880h440q33 0 56.5 23.5T680-800v280q0 33-23.5 56.5T600-440H240L80-280Zm80-240v-280 280Z"/></svg> Help Center</h1>
+            <p>Avant de créer un post, veuillez rechercher si la question n'a pas déjà été posée. <br>
+                Utilisez un titre clair et une description détaillée de votre problème.<br>
+                Signer par votre prénom</p>
+        </header>
+
+        <section id="Searchbar">
+            <svg class="searchInput_svg" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M783.52-110.91 529.85-364.59q-29.76 23.05-68.64 36.57-38.88 13.52-83.12 13.52-111.16 0-188.33-77.17-77.17-77.18-77.17-188.33t77.17-188.33q77.17-77.17 188.33-77.17 111.15 0 188.32 77.17 77.18 77.18 77.18 188.33 0 44.48-13.52 83.12-13.53 38.64-36.57 68.16l253.91 254.15-63.89 63.66ZM378.09-405.5q72.84 0 123.67-50.83 50.83-50.82 50.83-123.67t-50.83-123.67q-50.83-50.83-123.67-50.83-72.85 0-123.68 50.83-50.82 50.82-50.82 123.67t50.82 123.67q50.83 50.83 123.68 50.83Z"/></svg>
+            <input type="text" id="SearchInput" placeholder="Recherche ou création d'un post...">
+            <button id="NewPost">
+                <svg class="newPost_svg" xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/></svg>
+                Nouveau post
+            </button>
+        </section>
+        <section id="NewPostForm" class="hidden">
+            <svg id="NewPostForm_svg" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M256-192.35 192.35-256l224-224-224-224L256-767.65l224 224 224-224L767.65-704l-224 224 224 224L704-192.35l-224-224-224 224Z"/></svg>
+            <input type="text" id="Title" placeholder="Titre">
+            <textarea id="Content" placeholder="Entrer un message..."></textarea>
+            <button id="Post">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m720-120-56-56 63-64H560v-80h167l-63-64 56-56 160 160-160 160Zm-600 0v-600q0-33 23.5-56.5T200-800h480q33 0 56.5 23.5T760-720v203q-10-2-20-2.5t-20-.5q-10 0-20 .5t-20 2.5v-203H200v400h283q-2 10-2.5 20t-.5 20q0 10 .5 20t2.5 20H240L120-120Zm80-200v-400 400Z"/></svg>
+            </button>
+        </section>
+        
+        <section id="PostsContainer">
+            <article class="post-preview">
+                <div class="post-header">
+                    <h2>Installation de Python 3.12 sur Window ant de créer un post, veuillez rechercher si la question n'a pas s</h2>
+                    <span class="status status-pending">En attente</span>
+                </div>
+                <p>Je suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance ! suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance !suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance !suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance !suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance !suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance !suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance !</p>
+                <div class="post-footer">
+                    <span class="tags"><span class="user"><strong>DesignMaster</strong></span><span class="tag">Texte</span><span class="tag">hey</span></span>
+                </div>
+            </article>
+
+            <article class="post-preview border-success">
+                <div class="post-header">
+                    <h2>Erreur de compilation CSS (OKLCH non reconnu)</h2>
+                    <span class="status status-success">Résolu</span>
+                </div>
+                <p>Mon navigateur ne semble pas interpréter les couleurs oklch() que j'ai définies dans mon root...</p>
+                <div class="post-footer">
+                    <span class="tags"><span class="user"><strong>DesignMaster</strong></span><span class="tag">Design</span><span class="tag">test</span></span>
+                </div>
+            </article>
+        </section>
+        
+        <section id="PostOverlay">
+            <div class="overlay-wrapper">
+            <article id="PostPreview" class="post-preview">>
+            </article>
+            <div class="utils">
+                <div class="top">
+                    <button id="FirstBtn" class="first btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="M440-320h80v-168l64 64 56-56-160-160-160 160 56 56 64-64v168Zm40 240q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
+                    </button>
+                    <button id="PinBtn" class="pin btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m640-480 80 80v80H520v240l-40 40-40-40v-240H240v-80l80-80v-280h-40v-80h400v80h-40v280Zm-286 80h252l-46-46v-314H400v314l-46 46Zm126 0Z"/></svg>
+                    </button>
+                </div>
+                <button id="DeleteBtn" class="delete btn">
+                     <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m376-300 104-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56Zm-96 180q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520Zm-400 0v520-520Z"/></svg>
+                </button>
+            </div>
+            </div>
+        </section>
+        
+    </main>
+</body>
+</html>

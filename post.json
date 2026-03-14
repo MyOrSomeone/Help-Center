@@ -1,0 +1,37 @@
+[
+  {
+  "title": "erreur de compilation CSS (OKLCH non reconnu)",
+  "description": "Mon navigateur ne semble pas interpréter les couleurs oklch() que j'ai définies dans mon root",
+  "tags": ["Windows", "test"],
+  "user": "DesignMaster",
+  "status": "success",
+  "comments": [
+      {
+          "user": "CodeGuru",
+          "content": "Le support de la fonction oklch() dépend du navigateur que tu utilises. Assure-toi que ton navigateur est à jour, car les versions plus anciennes peuvent ne pas prendre en charge cette fonctionnalité. Si tu utilises un navigateur moderne et que le problème persiste, vérifie que ta syntaxe CSS est correcte et que tu n'as pas de fautes de frappe dans tes déclarations de couleur."
+      },
+      {
+          "user": "PyHelper ",
+          "content": "Si tu souhaites une compatibilité plus large, tu peux envisager d'utiliser des fonctions de couleur plus largement supportées comme rgb() ou hex, ou d'utiliser un préprocesseur CSS qui peut convertir les couleurs oklch() en formats compatibles avec les navigateurs plus anciens."
+      }
+    ]
+  },
+  {
+  "title": "Installation de Python 3.12 sur Windows",
+  "description": "Je suis débutant en programmation et j'aimerais savoir comment installer Python proprement sur mon ordinateur sans casser mon PATH. Merci d'avance !",
+  "tags": ["Python", "erreur", "Débutant"],
+  "user": "DesignMaster",
+  "status": "pending",
+  "comments": [
+      {
+        "pinned": true,
+        "user": "CodeGuru",
+        "content": "Pour installer Python 3.12 sur Windows, tu peux suivre ces étapes : 1. Va sur le site officiel de Python (https://www.python.org/downloads/). 2. Télécharge l'installateur pour Windows. 3. Lance l'installateur et assure-toi de cocher l'option 'Add Python to PATH' avant de cliquer sur 'Install Now'. 4. Une fois l'installation terminée, tu peux vérifier que Python est correctement installé en ouvrant une invite de commande et en tapant 'python --version'."
+      },
+      {
+        "user": "PyHelper ",
+        "content": "Si tu préfères une installation plus personnalisée, tu peux choisir l'option 'Custom installation' pour avoir plus de contrôle sur les paramètres d'installation."
+      }
+    ]
+  }
+]
