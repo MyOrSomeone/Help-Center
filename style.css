@@ -279,8 +279,9 @@ p { color: var(--text-muted); }
 #SendBtn:active {
   transform: scale(0.95);
 }
-.comment{
+.user-comment{
   display: flex;
+  width: 100%;
   flex-direction: row;
   background-color: var(--bg);
   border: 2px solid var(--border);
@@ -289,6 +290,11 @@ p { color: var(--text-muted); }
 }
 .comment-content {
   margin-right: auto;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  min-width: 0;
+  position: relative;
 }
 .pin-btn {
   position: relative;
@@ -490,7 +496,7 @@ h2 {
   padding: 0.25rem 0.75rem;
 }
 
-.tag {
+.tagg {
   justify-self: center;
   background: var(--bg);
   color: var(--text);
@@ -524,4 +530,31 @@ h2 {
 /* hover */
 ::-webkit-scrollbar-thumb:hover {
   background: #777;
+}
+
+/* Pour les commentaires et la description du post */
+.comment-content p, .as-comment {
+  white-space: pre-wrap; /* Respecte les sauts de ligne (\n) et revient à la ligne si c'est trop long */
+  word-break: break-word;
+
+}
+
+/* Pour les blocs Prism */
+pre[class*="language-"] {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1rem;
+  border-radius: 1rem;
+  background-color: var(--bg-dark) !important;
+  box-shadow: inset 0 0px 10px -5px black;
+}
+
+pre[class*="language-"] code {
+  display: block;
+  min-width: max-content;
+  white-space: pre;
+}
+pre[class*="language-"] {
+  padding: 1rem 1.25rem;
 }

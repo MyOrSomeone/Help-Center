@@ -152,19 +152,19 @@ function renderPosts(inp) {
         }
         postElement.innerHTML = `
             <div class="post-header">
-                <h2>${post.title}</h2>
+                <h2>${cleanHTML(post.title)}</h2>
                 <span class="status status-${post.status || 'pending'}">
                     ${post.status === 'success' ? 'Résolu' : 'En attente'}
                 </span>
             </div>
-            <p>${post.description}</p>
+            <p>${formatComment(post.description)}</p>
             <div class="post-footer">
-                <span class="tags"><span class="user"><strong>${post.user}</strong></span>${post.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</span>
+                <span class="tags"><span class="user"><strong>${cleanHTML(post.user)}</strong></span>${post.tags.map(tag => `<span class="tag">${cleanHTML(tag)}</span>`).join('')}</span>
             </div>`;
         postsContainer.appendChild(postElement);
         postElement.addEventListener('click', () => {
             showOverlay(post);     
-            const Comments = document.getElementsByClassName('comment');
+            const Comments = document.getElementsByClassName('user-comment');
             if (Comments.length > 0) {
                 Comments[Comments.length - 1].scrollIntoView();
             }
@@ -210,29 +210,79 @@ async function pinComment(post, commentIndex) {
     }
 }
 
+function cleanHTML(str) {
+    const p = document.createElement('p');
+    p.textContent = str;
+    return p.innerHTML;
+}
+function formatComment(str) {
+
+    let clean = cleanHTML(str)
+        .replace(/"""JS([\s\S]*?)"""/g, '<pre class="language-javascript"><code>$1</code></pre>')
+        .replace(/"""CSS([\s\S]*?)"""/g, '<pre class="language-css"><code>$1</code></pre>')
+        .replace(/"""HTML([\s\S]*?)"""/g, '<pre class="language-html"><code>$1</code></pre>')
+        .replace(/"""PY([\s\S]*?)"""/g, '<pre class="language-python"><code>$1</code></pre>')
+        .replace(/"""Py([\s\S]*?)"""/g, '<pre class="language-py"><code>$1</code></pre>')
+        .replace(/"""C([\s\S]*?)"""/g, '<pre class="language-css"><code>$1</code></pre>')
+        .replace(/"""C\+\+([\s\S]*?)"""/g, '<pre class="language-html"><code>$1</code></pre>')
+        .replace(/"""SQL([\s\S]*?)"""/g, '<pre class="language-sql"><code>$1</code></pre>')
+        .replace(/"""JAVA([\s\S]*?)"""/g, '<pre class="language-java"><code>$1</code></pre>')
+        .replace(/"""Java([\s\S]*?)"""/g, '<pre class="language-java"><code>$1</code></pre>')
+        .replace(/"""JSON([\s\S]*?)"""/g, '<pre class="language-json"><code>$1</code></pre>')
+        // .replace(/"""([\s\S]*?)"""/g, '<pre class="language-clike"><code>$1</code></pre>');
+
+        clean = clean.replace(/"""([\s\S]*?)"""/g, (match, code) => {
+        let language = "clike"; // Par défaut
+
+        // Détection JS : si on voit let, const, function, =>, ou console.log
+        if (code.match(/\b(let|const|function|console|var|if \(|return|addEventListener|getElement|document.)\b/)) {
+            language = "javascript";
+        }
+        // Détection HTML : si on voit des balises comme <div>, <html>, <!DOCTYPE...
+        else if (code.match(/&lt;[a-z!]/i)) {
+            language = "markup"; // "markup" est le nom pour HTML dans Prism
+        } 
+        // Détection CSS : si on voit des propriétés avec : et ;
+        else if (code.match(/[a-z-]+\s*:\s*[^;]+;/i) || code.match(/.[a-z-]+\s+{([\s\S]*?)\}/)) {
+            language = "css";
+        }
+
+        return `<pre class="language-${language}"><code>${code}</code></pre>`;
+        });
+
+        // 3. On traite les autres formatages
+    clean = clean.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>')
+                 .replace(/\*([\s\S]*?)\*/g, '<em>$1</em>')
+                 .replace(/__([\s\S]*?)__/g, '<u>$1</u>');
+
+    // 4. On ajoute les <br> UNIQUEMENT si ce n'est pas à l'intérieur d'un <pre>
+    // Mais il y a plus simple : utiliser le CSS pour le texte normal aussi !
+    return clean;
+}
+
 // (render) Affichage de l'overlay d'un post
 function showOverlay(post) {
     currentOpenedPostId = post.id;
-    PostPreview.innerHTML = `
+    PostPreview.innerHTML = ` 
                 <div class="post-header">
-                    <h2 class="full">${post.title}</h2>
+                    <h2 class="full">${cleanHTML(post.title)}</h2>
                     <span id="Status" class="status status-${post.status || 'pending'}">
                     ${post.status === 'success' ? 'Résolu' : 'En attente'}</span>
                 </div>
                 
                 <div class="comments">
 
-                <p class="full as-comment">${post.description}</p>
+                <p class="full as-comment">${formatComment(post.description)}</p>
                 
-                    ${post.comments.map(comment => `<div class="comment ${comment.pinned ? 'pinned' : ''}">
+                    ${post.comments.map(comment => `<div class="user-comment ${comment.pinned ? 'pinned' : ''}">
                         
                         <button class="pin-btn")">
                             ${comment.pinned ? '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="var(--accent)"><path d="M680-840v80h-40v327l-80-80v-247H400v87l-87-87-33-33v-47h400ZM480-40l-40-40v-240H240v-80l80-80v-46L56-792l56-56 736 736-58 56-264-264h-6v240l-40 40ZM354-400h92l-44-44-2-2-46 46Zm126-193Zm-78 149Z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m640-480 80 80v80H520v240l-40 40-40-40v-240H240v-80l80-80v-280h-40v-80h400v80h-40v280Zm-286 80h252l-46-46v-314H400v314l-46 46Zm126 0Z"/></svg>'}
                         </button>
 
                         <article class="comment-content">
-                            <span class="user"><strong>${comment.user}</strong></span>
-                            <p>${comment.content}</p>
+                            <span class="user"><strong>${cleanHTML(comment.user)}</strong></span>
+                            <p>${formatComment(comment.content)}</p>
                         </article>
                            
                         <button class="delete-btn">
@@ -248,7 +298,7 @@ function showOverlay(post) {
                     </button>
                 </div>
                 <div class="post-footer">
-                    <span class="tags"><span class="user"><strong>${post.user}</strong></span>${post.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</span>
+                    <span class="tags"><span class="user"><strong>${cleanHTML(post.user)}</strong></span>${post.tags.map(tag => `<span class="tagg">${cleanHTML(tag)}</span>`).join('')}</span>
                 </div>
             `;
 
@@ -319,7 +369,9 @@ function showOverlay(post) {
 
     Status.addEventListener('click', () => statusChange(Status, post));
 
-    deleteBtn.addEventListener('click', () => deletePost(post), { once: true });
+    deleteBtn.onclick = () => deletePost(post);
+    
+    Prism.highlightAll();
 }
 
 // ----------------------------------------------------------------------
@@ -420,7 +472,7 @@ async function postComment(post, chatInput) {
             comments: arrayUnion(newComment)
         }) 
         chatInput.value = "";
-        const Comments = document.getElementsByClassName('comment');
+        const Comments = document.getElementsByClassName('user-comment');
         if (Comments.length > 0) {
             Comments[Comments.length - 1].scrollIntoView({behavior: 'smooth'});
         }
@@ -504,8 +556,8 @@ textarea.addEventListener("input", () => {
   textarea.style.height = textarea.scrollHeight + "px";
   textarea.style.maxHeight = "68dvh";
 });
-firstBtn.addEventListener('click', scrollToFirst());
-pinBtn.addEventListener('click', scrollToPinned());
+firstBtn.addEventListener('click', scrollToFirst);
+pinBtn.addEventListener('click', scrollToPinned);
 overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
         hideOverlay()
