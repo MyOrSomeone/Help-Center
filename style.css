@@ -33,26 +33,34 @@
 /* Reset & Base */
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Google Sans Flex', system-ui, sans-serif;   font-variation-settings: "wght" 600, "ROND" 100, "GRAD" 48, "opsz" 144 !important;}
 
-body {
+#MainContent {
+  width: 100%;
+  max-width: 850px;
+  display: flex !important;
+  flex-direction: column;
+  gap: 2.5rem;
+  max-height: calc(100vh - 6.5rem) !important;
+}
+main{
+  position: absolute;
+  top: 4rem;
+  left: 4rem;
+  width: calc(100vw - 4rem);
   background: var(--bg);
   color: var(--text);
   font-family: 'Google Sans Flex', system-ui, sans-serif;
   font-variation-settings: "wght" 600, "ROND" 100, "GRAD" 48, "opsz" 144 !important;
   letter-spacing: 0.03rem;
-  min-height: 100vh;
+  min-height: calc(100vh - 4rem);
+
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 2rem 1rem;
   line-height: 1.5;
-}
+  border-radius: 15rem 0 0 0;
 
-main {
-  width: 100%;
-  max-width: 850px;
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
+  max-height: calc(100vh - 4rem);
 }
 
 .hero {
@@ -409,12 +417,21 @@ p { color: var(--text-muted); }
 }
 
 .newPost_svg { fill: currentColor; }
+#NewPost::after{
+  content: "Nouveau Post" !important;
+}
 
 /* Posts List */
 #PostsContainer {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  overflow: scroll;
+  box-shadow: inset 0 200px 20px -200px var(--bg-dark);
+  margin: -1rem -1rem 0 -1rem;
+  border-radius: 1rem;
+  padding: 1rem;
+  border-top: var(--bg-dark);
 }
 
 .post-preview {
@@ -557,4 +574,217 @@ pre[class*="language-"] code {
 }
 pre[class*="language-"] {
   padding: 1rem 1.25rem;
+}
+
+#Login, #Signup, #Register{
+  position: absolute;
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  z-index: 20000;
+  top:-4rem;
+  left:-4rem;
+  font-size: 2rem;
+}
+form{
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  background-color: var(--bg);
+  padding: 4rem;
+  border-radius: 2rem;
+  border: 2px solid var(--accent);
+  box-shadow: inset 0 0px 20px -10px var(--accent), 0 0px 20px -10px var(--accent);
+  min-width: 40rem;
+}
+#LoginInputs, #SignUpInputs{
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+label{
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  width: 100%;
+}
+label > input {
+  background-color: var(--bg-dark);
+  outline: none;
+  border: 2px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 1rem 1.5rem;
+  color: var(--text);
+  width: 100%;
+}
+.logo{
+  display: flex;
+  align-self: center;
+  gap: 1rem;
+  font-size: 3rem;
+}
+hr{
+  border-color: var(--border);
+}
+#SignUp, #LogIn{
+  padding: 1rem 1.5rem;
+  background-color: var(--bg-light);
+  border: 1px solid var(--accent);
+  border-radius: 1.25rem;
+  font-size: 1.5rem;
+  color: var(--text);
+  box-shadow: inset 0 0px 20px -10px var(--accent), 0 0px 20px -10px var(--accent);
+}
+.see_pwd {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#wannaLogin, #wannaSignUp, #SignMethod{
+  background-color: transparent;
+  border: none;
+  color: var(--secondary);
+  font-size: 1rem;
+  text-decoration: underline;
+}
+#Connexion_Infos{
+  height: 100vh;
+  background-color: var(--bg-light);
+  width: 100%;
+}
+#Disconnect{
+  position: relative;
+  background-color: var(--danger);
+  border: 2px solid oklch(0.4 0.15 30);
+  box-shadow: 0 0 5px 2px oklch(0.4 0.15 30), inset 0 0 5px 2px oklch(0.4 0.15 30);
+  height: 6rem;
+  width: 6rem;
+  border-radius: 4rem;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index:1
+}
+#Name_Display{
+color: var(--text);
+position: absolute;
+top: 0.5rem;
+right: 2rem;
+font-size: 1.5rem;
+justify-self: center;
+background: var(--bg);
+color: var(--text);
+border: 2px solid var(--border);
+border-radius: 2rem;
+padding: 0.5rem 1rem;
+height: min-content;
+font-weight: 600;
+}
+
+.wrong{
+  border: 2px solid oklch(0.4 0.15 30);
+  box-shadow: 0 0 5px 2px oklch(0.4 0.15 30), inset 0 0 5px 2px oklch(0.4 0.15 30);
+  transition: all 0.5s ease;
+}
+
+/* --- ADAPTATION MOBILE --- */
+@media (max-width: 768px) {
+  /* 1. On réduit le décalage sur les côtés */
+  main {
+    top: 3rem; /* Un peu moins d'espace en haut */
+    left: 0;   /* On colle à gauche sur mobile */
+    width: 100vw;
+    min-height: calc(100vh - 3rem);
+    padding: 1.5rem 1rem;
+    border-radius: 3rem 3rem 0 0; /* On réduit l'énorme arrondi pour que ça soit joli sur tel */
+  }
+
+  /* 2. On ajuste le contenu principal */
+  #MainContent {
+    gap: 1.5rem; /* On réduit l'espace entre les éléments */
+  }
+
+  /* 3. CORRECTION MAJEURE : Les formulaires de Login/Register */
+  #Login, #Signup, #Register {
+    top: -4rem;
+    left: 0;
+    padding: 1rem; /* On évite que le formulaire touche les bords de l'écran */
+  }
+
+  form {
+    min-width: 0;    /* On annule le 40rem qui casse tout */
+    width: 100%;     /* Le formulaire prend toute la largeur dispo */
+    padding: 2rem 1.5rem; /* Un peu moins de padding interne */
+    gap: 1.5rem;
+  }
+
+  .logo {
+    font-size: 2rem; /* Logo un peu plus petit sur tel */
+  }
+
+  /* 4. Overlay des posts (quand on clique sur un post) */
+  #PostOverlay {
+    padding: 1rem; /* On réduit le padding de 4rem à 1rem */
+  }
+
+  .overlay-wrapper {
+    flex-direction: column; /* Les boutons passent en dessous du post si besoin */
+  }
+
+  .utils {
+    flex-direction: row; /* Les boutons d'action (delete/pin) se mettent côte à côte */
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .top {
+    position: static; /* On remet les boutons dans le flux normal */
+    flex-direction: row;
+  }
+
+  /* 5. Ajustements des textes */
+  h1 {
+    font-size: 2.2rem; /* On force une taille lisible pour le titre */
+  }
+  /* 6. On ajuste les inputs pour qu'ils ne soient pas trop serrés */
+  #SearchInput, #Title, #Content, #ChatInput {
+    padding: 1rem 3rem; /* On réduit le padding latéral énorme (3.5rem) */
+  }
+  
+  /* On replace l'icône loupe pour qu'elle ne gêne pas */
+  .searchInput_svg {
+    left: 0.75rem;
+  }
+
+  #Disconnect{
+    height: 2rem;
+    width: 2rem;
+    border-radius: 4rem;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index:1
+  }
+  
+  #Disconnect > svg{
+    height: 16px;
+    width: 16px;
+  }
+  #Name_Display{
+    top: 0.5rem;
+    right: 0.75rem;
+    font-size: 0.75rem;
+  }
+  #NewPost::after{
+    content: none !important;
+  }
 }

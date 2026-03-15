@@ -16,6 +16,10 @@ import {
     arrayRemove,
     doc,
     query,
+    where,
+    getDoc,
+    getDocs,
+    deleteField,
     orderBy 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -66,6 +70,18 @@ const deleteBtn = document.getElementById('DeleteBtn');
 let pin_index = 0;
 let chatInput = document.getElementById('ChatInput');
 
+const Name = document.getElementById('Name')
+const PWD = document.getElementById('Password')
+const PWDV = document.getElementById('PasswordVerif')
+const SeePWD = document.getElementById('SeePassword')
+const SeePWDV = document.getElementById('SeePasswordVerif')
+const SignUpBtn = document.getElementById('SignUp')
+const LoginBtn = document.getElementById('LogIn')
+
+// Login
+let isLoggedIn = false;
+const NameDisplay = document.getElementById('Name_Display')
+
 // pour le type module, les variables globales ne sont pas accessibles directement, il faut les definir en dehors
 let posts = [];
 let search = [];
@@ -81,485 +97,725 @@ let currentOpenedPostId = null;
 const db = getFirestore(app);
 const postsCol = collection(db, "posts");
 
-// ------------------------------- 
+function startApp() {
+    // ------------------------------- 
 
-// Récupération des données depuis le fichier JSON
+    // Récupération des données depuis le fichier JSON
 
-// fetch('post.json?v=' + Date.now())
-//   .then(response => response.json())
-//   .then(data => {
-//     posts = data;
-//     renderPosts(input);
-//   })
-//   .catch(error => console.error('Erreur:', error));
+    // fetch('post.json?v=' + Date.now())
+    //   .then(response => response.json())
+    //   .then(data => {
+    //     posts = data;
+    //     renderPosts(input);
+    //   })
+    //   .catch(error => console.error('Erreur:', error));
 
-// Récupération des données depuis Firebase Firestore
-onSnapshot(postsCol, (snapshot) => {
-    // On transforme les documents Firebase en tableau JS
-    posts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
-    
-    console.log("Données Firebase chargées :", posts);
-    renderPosts(input); // On affiche quand les données changent
+    // Récupération des données depuis Firebase Firestore
+    onSnapshot(postsCol, (snapshot) => {
+        if (!checkSession()) return;
 
-    if (currentOpenedPostId) {
-        const updatedPost = posts.find(p => p.id === currentOpenedPostId);
-        if (updatedPost) {
-            const commentsContainer = PostPreview.querySelector('.comments');
-            const scrollPos = commentsContainer ? commentsContainer.scrollTop : 0;
-
-            showOverlay(updatedPost);
+        // On transforme les documents Firebase en tableau JS
+        posts = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         
-            const newCommentsContainer = PostPreview.querySelector('.comments');
-            if (newCommentsContainer) {
-                newCommentsContainer.scrollTop = scrollPos;
+        console.log("Données Firebase chargées :", posts);
+        renderPosts(input); // On affiche quand les données changent
+
+        if (currentOpenedPostId) {
+            const updatedPost = posts.find(p => p.id === currentOpenedPostId);
+            if (updatedPost) {
+                const commentsContainer = PostPreview.querySelector('.comments');
+                const scrollPos = commentsContainer ? commentsContainer.scrollTop : 0;
+
+                showOverlay(updatedPost);
+            
+                const newCommentsContainer = PostPreview.querySelector('.comments');
+                if (newCommentsContainer) {
+                    newCommentsContainer.scrollTop = scrollPos;
+                }
+            }
+        }
+    });
+
+    // ----------------------------------------------------------------------
+    // -------------------- Fonctions de Rendu (Render) ---------------------
+    // ----------------------------------------------------------------------
+
+    // Par défaut, on cache l'overlay
+    overlay.style.display = "none";
+
+    // (render) Fonction de rendu des posts
+    function renderPosts(inp) {
+        search = inp.value.toLowerCase().trim().split(/\s+/);
+        postsContainer.innerHTML = '';
+        len = search.length
+        filter_tag = posts.filter(post => search
+        .some(word => post.tags
+        .some(tag => tag.toLowerCase().includes(word))))
+
+        filter_title = posts.filter(post => search
+        .filter(word => post.title.toLowerCase().includes(word)).length >= len - Math.round(len/3))
+
+        filter_description = posts.filter(post => search
+        .filter(word => post.description.toLowerCase().includes(word)).length >= len - Math.round(len/3))
+
+        filteredPosts = [...filter_tag, ...filter_title.filter(post => !filter_tag.includes(post))];
+        console.log(filteredPosts)
+        filteredPosts.forEach((post) => {
+            const postElement = document.createElement('article');
+            postElement.classList.add('post-preview');
+            if (post.status) {
+                postElement.classList.add(`border-${post.status}`);
+            }
+            postElement.innerHTML = `
+                <div class="post-header">
+                    <h2>${cleanHTML(post.title)}</h2>
+                    <span class="status status-${post.status || 'pending'}">
+                        ${post.status === 'success' ? 'Résolu' : 'En attente'}
+                    </span>
+                </div>
+                <p>${formatComment(post.description)}</p>
+                <div class="post-footer">
+                    <span class="tags"><span class="user"><strong>${cleanHTML(post.user)}</strong></span>${post.tags.map(tag => `<span class="tag">${cleanHTML(tag)}</span>`).join('')}</span>
+                </div>`;
+            postsContainer.appendChild(postElement);
+            postElement.addEventListener('click', () => {
+                showOverlay(post);     
+                const Comments = document.getElementsByClassName('user-comment');
+                if (Comments.length > 0) {
+                    Comments[Comments.length - 1].scrollIntoView();
+                }
+                scrollToPinned()
+            });
+        });
+    }
+
+    async function deleteComment(post, comment) {
+        if (!checkSession()) return;
+
+        if (confirm("Voulez-vous vraiment supprimer ce commentaire ?")) {
+        
+            const postRef = doc(postsCol, post.id)
+
+            try {
+                await updateDoc(postRef, {
+                    comments: arrayRemove(comment)
+                })
+            }
+            catch (error) {
+                alert("Erreur lors de la suppression du commentaire : " + error.message);
             }
         }
     }
-});
 
-// ----------------------------------------------------------------------
-// -------------------- Fonctions de Rendu (Render) ---------------------
-// ----------------------------------------------------------------------
+    async function pinComment(post, commentIndex) {
 
-// Par défaut, on cache l'overlay
-overlay.style.display = "none";
-
-// (render) Fonction de rendu des posts
-function renderPosts(inp) {
-    search = inp.value.toLowerCase().trim().split(/\s+/);
-    postsContainer.innerHTML = '';
-    len = search.length
-    filter_tag = posts.filter(post => search
-    .some(word => post.tags
-    .some(tag => tag.toLowerCase().includes(word))))
-
-    filter_title = posts.filter(post => search
-    .filter(word => post.title.toLowerCase().includes(word)).length >= len - Math.round(len/3))
-
-    filter_description = posts.filter(post => search
-    .filter(word => post.description.toLowerCase().includes(word)).length >= len - Math.round(len/3))
-
-    filteredPosts = [...filter_tag, ...filter_title.filter(post => !filter_tag.includes(post))];
-    console.log(filteredPosts)
-    filteredPosts.forEach((post) => {
-        const postElement = document.createElement('article');
-        postElement.classList.add('post-preview');
-        if (post.status) {
-            postElement.classList.add(`border-${post.status}`);
-        }
-        postElement.innerHTML = `
-            <div class="post-header">
-                <h2>${cleanHTML(post.title)}</h2>
-                <span class="status status-${post.status || 'pending'}">
-                    ${post.status === 'success' ? 'Résolu' : 'En attente'}
-                </span>
-            </div>
-            <p>${formatComment(post.description)}</p>
-            <div class="post-footer">
-                <span class="tags"><span class="user"><strong>${cleanHTML(post.user)}</strong></span>${post.tags.map(tag => `<span class="tag">${cleanHTML(tag)}</span>`).join('')}</span>
-            </div>`;
-        postsContainer.appendChild(postElement);
-        postElement.addEventListener('click', () => {
-            showOverlay(post);     
-            const Comments = document.getElementsByClassName('user-comment');
-            if (Comments.length > 0) {
-                Comments[Comments.length - 1].scrollIntoView();
-            }
-            scrollToPinned()
-        });
-    });
-}
-
-async function deleteComment(post, comment) {
-    if (confirm("Voulez-vous vraiment supprimer ce commentaire ?")) {
-    
         const postRef = doc(postsCol, post.id)
 
         try {
-            await updateDoc(postRef, {
-                comments: arrayRemove(comment)
-            })
+            await runTransaction(db, async (transaction) => {
+                const postDoc = await transaction.get(postRef);
+                if (!postDoc.exists()) return;
+
+                const currentComments = postDoc.data().comments;
+
+                currentComments[commentIndex].pinned = !currentComments[commentIndex].pinned
+
+                transaction.update(postRef, {comments: currentComments});
+            });
         }
         catch (error) {
-            alert("Erreur lors de la suppression du commentaire : " + error.message);
+            alert("Erreur lors du pin du commentaire : " + error.message);
         }
     }
-}
 
-async function pinComment(post, commentIndex) {
-
-    const postRef = doc(postsCol, post.id)
-
-    try {
-        await runTransaction(db, async (transaction) => {
-            const postDoc = await transaction.get(postRef);
-            if (!postDoc.exists()) return;
-
-            const currentComments = postDoc.data().comments;
-
-            currentComments[commentIndex].pinned = !currentComments[commentIndex].pinned
-
-            transaction.update(postRef, {comments: currentComments});
-        });
+    function cleanHTML(str) {
+        const p = document.createElement('p');
+        p.textContent = str;
+        return p.innerHTML;
     }
-    catch (error) {
-        alert("Erreur lors du pin du commentaire : " + error.message);
-    }
-}
+    function formatComment(str) {
 
-function cleanHTML(str) {
-    const p = document.createElement('p');
-    p.textContent = str;
-    return p.innerHTML;
-}
-function formatComment(str) {
+        let clean = cleanHTML(str)
+            .replace(/"""JS([\s\S]*?)"""/g, '<pre class="language-javascript"><code>$1</code></pre>')
+            .replace(/"""CSS([\s\S]*?)"""/g, '<pre class="language-css"><code>$1</code></pre>')
+            .replace(/"""HTML([\s\S]*?)"""/g, '<pre class="language-html"><code>$1</code></pre>')
+            .replace(/"""PY([\s\S]*?)"""/g, '<pre class="language-python"><code>$1</code></pre>')
+            .replace(/"""Py([\s\S]*?)"""/g, '<pre class="language-py"><code>$1</code></pre>')
+            .replace(/"""C([\s\S]*?)"""/g, '<pre class="language-css"><code>$1</code></pre>')
+            .replace(/"""C\+\+([\s\S]*?)"""/g, '<pre class="language-cpp"><code>$1</code></pre>')
+            .replace(/"""SQL([\s\S]*?)"""/g, '<pre class="language-sql"><code>$1</code></pre>')
+            .replace(/"""JAVA([\s\S]*?)"""/g, '<pre class="language-java"><code>$1</code></pre>')
+            .replace(/"""Java([\s\S]*?)"""/g, '<pre class="language-java"><code>$1</code></pre>')
+            .replace(/"""JSON([\s\S]*?)"""/g, '<pre class="language-json"><code>$1</code></pre>')
 
-    let clean = cleanHTML(str)
-        .replace(/"""JS([\s\S]*?)"""/g, '<pre class="language-javascript"><code>$1</code></pre>')
-        .replace(/"""CSS([\s\S]*?)"""/g, '<pre class="language-css"><code>$1</code></pre>')
-        .replace(/"""HTML([\s\S]*?)"""/g, '<pre class="language-html"><code>$1</code></pre>')
-        .replace(/"""PY([\s\S]*?)"""/g, '<pre class="language-python"><code>$1</code></pre>')
-        .replace(/"""Py([\s\S]*?)"""/g, '<pre class="language-py"><code>$1</code></pre>')
-        .replace(/"""C([\s\S]*?)"""/g, '<pre class="language-css"><code>$1</code></pre>')
-        .replace(/"""C\+\+([\s\S]*?)"""/g, '<pre class="language-html"><code>$1</code></pre>')
-        .replace(/"""SQL([\s\S]*?)"""/g, '<pre class="language-sql"><code>$1</code></pre>')
-        .replace(/"""JAVA([\s\S]*?)"""/g, '<pre class="language-java"><code>$1</code></pre>')
-        .replace(/"""Java([\s\S]*?)"""/g, '<pre class="language-java"><code>$1</code></pre>')
-        .replace(/"""JSON([\s\S]*?)"""/g, '<pre class="language-json"><code>$1</code></pre>')
-        // .replace(/"""([\s\S]*?)"""/g, '<pre class="language-clike"><code>$1</code></pre>');
+            clean = clean.replace(/"""([\s\S]*?)"""/g, (match, code) => {
+            let language = "clike"; // Par défaut
 
-        clean = clean.replace(/"""([\s\S]*?)"""/g, (match, code) => {
-        let language = "clike"; // Par défaut
-
-        // Détection JS : si on voit let, const, function, =>, ou console.log
-        if (code.match(/\b(let|const|function|console|var|if \(|return|addEventListener|getElement|document.)\b/)) {
-            language = "javascript";
-        }
-        // Détection HTML : si on voit des balises comme <div>, <html>, <!DOCTYPE...
-        else if (code.match(/&lt;[a-z!]/i)) {
-            language = "markup"; // "markup" est le nom pour HTML dans Prism
-        } 
-        // Détection CSS : si on voit des propriétés avec : et ;
-        else if (code.match(/[a-z-]+\s*:\s*[^;]+;/i) || code.match(/.[a-z-]+\s+{([\s\S]*?)\}/)) {
-            language = "css";
-        }
-
-        return `<pre class="language-${language}"><code>${code}</code></pre>`;
-        });
-
-        // 3. On traite les autres formatages
-    clean = clean.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>')
-                 .replace(/\*([\s\S]*?)\*/g, '<em>$1</em>')
-                 .replace(/__([\s\S]*?)__/g, '<u>$1</u>');
-
-    // 4. On ajoute les <br> UNIQUEMENT si ce n'est pas à l'intérieur d'un <pre>
-    // Mais il y a plus simple : utiliser le CSS pour le texte normal aussi !
-    return clean;
-}
-
-// (render) Affichage de l'overlay d'un post
-function showOverlay(post) {
-    currentOpenedPostId = post.id;
-    PostPreview.innerHTML = ` 
-                <div class="post-header">
-                    <h2 class="full">${cleanHTML(post.title)}</h2>
-                    <span id="Status" class="status status-${post.status || 'pending'}">
-                    ${post.status === 'success' ? 'Résolu' : 'En attente'}</span>
-                </div>
-                
-                <div class="comments">
-
-                <p class="full as-comment">${formatComment(post.description)}</p>
-                
-                    ${post.comments.map(comment => `<div class="user-comment ${comment.pinned ? 'pinned' : ''}">
-                        
-                        <button class="pin-btn")">
-                            ${comment.pinned ? '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="var(--accent)"><path d="M680-840v80h-40v327l-80-80v-247H400v87l-87-87-33-33v-47h400ZM480-40l-40-40v-240H240v-80l80-80v-46L56-792l56-56 736 736-58 56-264-264h-6v240l-40 40ZM354-400h92l-44-44-2-2-46 46Zm126-193Zm-78 149Z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m640-480 80 80v80H520v240l-40 40-40-40v-240H240v-80l80-80v-280h-40v-80h400v80h-40v280Zm-286 80h252l-46-46v-314H400v314l-46 46Zm126 0Z"/></svg>'}
-                        </button>
-
-                        <article class="comment-content">
-                            <span class="user"><strong>${cleanHTML(comment.user)}</strong></span>
-                            <p>${formatComment(comment.content)}</p>
-                        </article>
-                           
-                        <button class="delete-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m376-300 104-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56Zm-96 180q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520Zm-400 0v520-520Z"/></svg>
-                        </button>
-                        
-                    </div>`).join('')}
-                </div>
-                <div class="chat">
-                    <textarea id="ChatInput" placeholder="Écrivez votre message ici..."></textarea>
-                    <button id="SendBtn">
-                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/></svg>
-                    </button>
-                </div>
-                <div class="post-footer">
-                    <span class="tags"><span class="user"><strong>${cleanHTML(post.user)}</strong></span>${post.tags.map(tag => `<span class="tagg">${cleanHTML(tag)}</span>`).join('')}</span>
-                </div>
-            `;
-
-    // on affiche l'overlay
-    overlay.style.display = "flex";
-    pin_index = 0;
-
-    const commentDeleteBtns = PostPreview.querySelectorAll('.delete-btn');
-    commentDeleteBtns.forEach((btn, index) => {
-        btn.onclick = () => {
-            deleteComment(post, post.comments[index]);
-        };
-    });
-    
-    const pinDeleteBtns = PostPreview.querySelectorAll('.pin-btn');
-    pinDeleteBtns.forEach((btn, index) => {
-        btn.onclick = () => {
-            pinComment(post, index);
-        };
-    });
-
-    /* suppression
-    deleteBtn.onclick = () => {
-        if (confirm("Voulez-vous vraiment supprimer ce post ?")) {
-            const postIndex = posts.indexOf(post); 
-            
-            if (postIndex !== -1) {
-                posts.splice(postIndex, 1);
-                overlay.style.display = "none";
-                renderPosts(input);
+            // Détection JS : si on voit let, const, function, =>, ou console.log
+            if (code.match(/\b(let|const|function|console|var|if \(|return|addEventListener|getElement|document.)\b/)) {
+                language = "javascript";
             }
-        }
-    }; */
+            // Détection HTML : si on voit des balises comme <div>, <html>, <!DOCTYPE...
+            else if (code.match(/&lt;[a-z!]/i)) {
+                language = "markup"; // "markup" est le nom pour HTML dans Prism
+            } 
+            // Détection CSS : si on voit des propriétés avec : et ;
+            else if (code.match(/[a-z-]+\s*:\s*[^;]+;/i) || code.match(/.[a-z-]+\s+{([\s\S]*?)\}/)) {
+                language = "css";
+            }
 
-    /* let deleteBtns = document.getElementsByClassName('delete-btn');
-    Array.from(deleteBtns).forEach((btn, index) => {
-        btn.addEventListener('click', () => {
-            post.comments.splice(index, 1);
-            showOverlay(post);
+            return `<pre class="language-${language}"><code>${code}</code></pre>`;
+            });
+
+            // 3. On traite les autres formatages
+        clean = clean.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*([\s\S]*?)\*/g, '<em>$1</em>')
+                    .replace(/__([\s\S]*?)__/g, '<u>$1</u>');
+
+        // 4. On ajoute les <br> UNIQUEMENT si ce n'est pas à l'intérieur d'un <pre>
+        // Mais il y a plus simple : utiliser le CSS pour le texte normal aussi !
+        return clean;
+    }
+
+    // (render) Affichage de l'overlay d'un post
+    function showOverlay(post) {
+        currentOpenedPostId = post.id;
+        PostPreview.innerHTML = ` 
+                    <div class="post-header">
+                        <h2 class="full">${cleanHTML(post.title)}</h2>
+                        <span id="Status" class="status status-${post.status || 'pending'}">
+                        ${post.status === 'success' ? 'Résolu' : 'En attente'}</span>
+                    </div>
+                    
+                    <div class="comments">
+
+                    <p class="full as-comment">${formatComment(post.description)}</p>
+                    
+                        ${post.comments.map(comment => `<div class="user-comment ${comment.pinned ? 'pinned' : ''}">
+                            
+                            <button class="pin-btn")">
+                                ${comment.pinned ? '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="var(--accent)"><path d="M680-840v80h-40v327l-80-80v-247H400v87l-87-87-33-33v-47h400ZM480-40l-40-40v-240H240v-80l80-80v-46L56-792l56-56 736 736-58 56-264-264h-6v240l-40 40ZM354-400h92l-44-44-2-2-46 46Zm126-193Zm-78 149Z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m640-480 80 80v80H520v240l-40 40-40-40v-240H240v-80l80-80v-280h-40v-80h400v80h-40v280Zm-286 80h252l-46-46v-314H400v314l-46 46Zm126 0Z"/></svg>'}
+                            </button>
+
+                            <article class="comment-content">
+                                <span class="user"><strong>${cleanHTML(comment.user)}</strong></span>
+                                <p>${formatComment(comment.content)}</p>
+                            </article>
+                            
+                            <button class="delete-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m376-300 104-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56Zm-96 180q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520Zm-400 0v520-520Z"/></svg>
+                            </button>
+                            
+                        </div>`).join('')}
+                    </div>
+                    <div class="chat">
+                        <textarea id="ChatInput" placeholder="Écrivez votre message ici..."></textarea>
+                        <button id="SendBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/></svg>
+                        </button>
+                    </div>
+                    <div class="post-footer">
+                        <span class="tags"><span class="user"><strong>${cleanHTML(post.user)}</strong></span>${post.tags.map(tag => `<span class="tagg">${cleanHTML(tag)}</span>`).join('')}</span>
+                    </div>
+                `;
+
+        // on affiche l'overlay
+        overlay.style.display = "flex";
+        pin_index = 0;
+
+        const commentDeleteBtns = PostPreview.querySelectorAll('.delete-btn');
+        commentDeleteBtns.forEach((btn, index) => {
+            btn.onclick = () => {
+                if (!checkSession()) return;
+                deleteComment(post, post.comments[index]);
+            };
         });
-    }); */
+        
+        const pinDeleteBtns = PostPreview.querySelectorAll('.pin-btn');
+        pinDeleteBtns.forEach((btn, index) => {
+            btn.onclick = () => {
+                if (!checkSession()) return;
+                pinComment(post, index);
+            };
+        });
 
-    /* let pinBtns = document.getElementsByClassName('pin-btn');
-    Array.from(pinBtns).forEach((btn, index) => {
-        btn.addEventListener('click', () => {
-            post.comments[index].pinned = !post.comments[index].pinned;
-            showOverlay(post);
-        });0
-    }); */
+        /* suppression
+        deleteBtn.onclick = () => {
+            if (confirm("Voulez-vous vraiment supprimer ce post ?")) {
+                const postIndex = posts.indexOf(post); 
+                
+                if (postIndex !== -1) {
+                    posts.splice(postIndex, 1);
+                    overlay.style.display = "none";
+                    renderPosts(input);
+                }
+            }
+        }; */
 
-    const Status = document.getElementById('Status');
+        /* let deleteBtns = document.getElementsByClassName('delete-btn');
+        Array.from(deleteBtns).forEach((btn, index) => {
+            btn.addEventListener('click', () => {
+                post.comments.splice(index, 1);
+                showOverlay(post);
+            });
+        }); */
 
-    let chatInput = document.getElementById('ChatInput');
-    chatInput.addEventListener("input", () => {
-        chatInput.style.height = "auto";
-        chatInput.style.height = chatInput.scrollHeight + "px";
-        chatInput.style.maxHeight = "40dvh";
-    });
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            postComment(post, chatInput);
+        /* let pinBtns = document.getElementsByClassName('pin-btn');
+        Array.from(pinBtns).forEach((btn, index) => {
+            btn.addEventListener('click', () => {
+                post.comments[index].pinned = !post.comments[index].pinned;
+                showOverlay(post);
+            });0
+        }); */
+
+        const Status = document.getElementById('Status');
+
+        let chatInput = document.getElementById('ChatInput');
+        chatInput.addEventListener("input", () => {
+            chatInput.style.height = "auto";
+            chatInput.style.height = chatInput.scrollHeight + "px";
+            chatInput.style.maxHeight = "40dvh";
+        });
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                postComment(post, chatInput);
+            }
+        });
+
+        let SendBtn = document.getElementById('SendBtn');
+        SendBtn.addEventListener('click', () => postComment(post, chatInput));
+
+        Status.addEventListener('click', () => statusChange(Status, post));
+
+        deleteBtn.onclick = () => deletePost(post);
+        
+        Prism.highlightAll();
+    }
+
+    // ----------------------------------------------------------------------
+    // ----------- Fonctions de d'interaction avec données (data) -----------
+    // ----------------------------------------------------------------------
+
+    // (data) Création d'un post et ajout à la base de données
+
+    /* Structure without any db
+    function createPost() {
+        posts.push({
+            title: Title.value,
+            description: Content.value,
+            tags: [],
+            user: "Anonyme", 
+            status: "pending",
+            comments: []
+        });
+        Content.value = '';
+        renderPosts(input);
+        closeForm('');
+    }*/
+
+    async function createPost() {
+        if (!checkSession()) return;
+        const newPost = {
+            title: Title.value,
+            description: Content.value,
+            tags: [],
+            user: sessionStorage.getItem('username'), 
+            status: "pending",
+            comments: []
+        };
+
+        try {
+            await addDoc(postsCol, newPost)
+            Content.value = '';
+            closeForm('');
+            console.log("Post enregistré avec succès !");
         }
-    });
-
-    let SendBtn = document.getElementById('SendBtn');
-    SendBtn.addEventListener('click', () => postComment(post, chatInput));
-
-    Status.addEventListener('click', () => statusChange(Status, post));
-
-    deleteBtn.onclick = () => deletePost(post);
-    
-    Prism.highlightAll();
-}
-
-// ----------------------------------------------------------------------
-// ----------- Fonctions de d'interaction avec données (data) -----------
-// ----------------------------------------------------------------------
-
-// (data) Création d'un post et ajout à la base de données
-
-/* Structure without any db
-function createPost() {
-    posts.push({
-        title: Title.value,
-        description: Content.value,
-        tags: [],
-        user: "Anonyme", 
-        status: "pending",
-        comments: []
-    });
-    Content.value = '';
-    renderPosts(input);
-    closeForm('');
-}*/
-
-async function createPost() {
-    const newPost = {
-        title: Title.value,
-        description: Content.value,
-        tags: [],
-        user: "Anonyme", 
-        status: "pending",
-        comments: []
+        catch (error) {
+            alert("Erreur lors de l'envoi : " + error.message);
+        }
     };
 
+    // (data) Changement du statut d'un post
+    /* Structure without any db and without push
+    function statusChange(Status, post) {
+        if (Status.classList.contains('status-success')) {
+            Status.classList.remove('status-success');
+            Status.classList.add('status-pending');
+            Status.textContent = 'En attente';
+        } else {
+            Status.classList.remove('status-pending');
+            Status.classList.add('status-success');
+            Status.textContent = 'Résolu';
+        }
+    } */
+
+    async function statusChange(Status, post) {
+        if (!checkSession()) return;
+        const postRef = doc(postsCol, post.id);
+        const newStatus = post.status === 'success' ? 'pending' : 'success'
+
+        try {
+            await updateDoc(postRef,{
+                status: newStatus
+            });
+        }
+        catch (error) {
+            alert("Erreur lors du changement de status : " + error.message);
+        }
+    }
+
+    // (data) Ajout d'un commentaire à un post
+    /* Structure without any db
+    function postComment(post, chatInput) {
+        if (chatInput.value.trim() === "") return;
+        post.comments.push({
+            user: "Anonyme",
+            content: chatInput.value,
+            pinned: false
+        });
+        chatInput.value = "";
+        showOverlay(post);
+    } */
+
+    async function postComment(post, chatInput) {
+        if (!checkSession()) return;
+        if (chatInput.value.trim() === "") return;
+        const postRef = doc(postsCol, post.id)
+        const newComment = {
+            user: sessionStorage.getItem("username"),
+            content: chatInput.value,
+            pinned: false,
+            date: new Date()
+        };
+        try {
+            await updateDoc(postRef, {
+                comments: arrayUnion(newComment)
+            }) 
+            chatInput.value = "";
+            const Comments = document.getElementsByClassName('user-comment');
+            if (Comments.length > 0) {
+                Comments[Comments.length - 1].scrollIntoView({behavior: 'smooth'});
+            }
+        }
+        catch (error) {
+            alert("Erreur lors de l'envois du commentaire : " + error.message);
+        }
+    }
+
+    async function deletePost(post) {
+        if (!checkSession()) return;
+
+        if (confirm("Voulez-vous VRAIMENT supprimer ce POST ? ")) {
+            const postRef = doc(postsCol, post.id)
+
+            try {
+                await deleteDoc(postRef)
+                hideOverlay()
+            }
+            catch (error) {
+                alert("Erreur lors de la suppression du post : " + error.message);
+            }
+        }
+    }
+
+    async function updateHeartbeat() {
+        const userId = sessionStorage.getItem('userId');
+        const token = sessionStorage.getItem('token');
+
+        if (userId && token) {
+            const userRef = doc(db, "users", userId);
+            await updateDoc(userRef, {
+                lastSeen: Date.now() // On enregistre le timestamp actuel
+            });
+        }
+    }
+
+    // Envoyer un signe de vie toutes les 5 minutes
+    setInterval(updateHeartbeat, 5 * 60 * 1000);
+    // Appeler une fois au démarrage
+    updateHeartbeat();
+
+    function checkAutomaticLogout() {
+        const loginTime = sessionStorage.getItem('loginTime');
+        const oneHour = 60 * 60 * 1000; // 1 heure en millisecondes
+
+        if (loginTime && (Date.now() - loginTime > oneHour)) {
+            alert("Votre session a expiré (limite d'une heure).");
+            disconnect(); // Ta fonction qui vide le token et reload
+        }
+    }
+
+    // On vérifie toutes les minutes pour la limite d'une heure
+    setInterval(checkAutomaticLogout, 60000);
+
+    // ----------------------------------------------------------------------
+    // ---------- Fonctions de d'interaction sans données (static) ----------
+    // ----------------------------------------------------------------------
+
+    NameDisplay.innerHTML = sessionStorage.getItem('username')
+    // (static) Affichage la zone de création de post 
+    function writePosts() {
+
+        const title = input.value.trim();
+        searchBar.classList.add('hidden');
+        newPostForm.classList.remove('hidden');
+        Title.value = title;
+        Title.focus();
+    }
+
+    // (static) Fermeture de la zone de création de post
+    function closeForm(str) {
+        const title = Title.value.trim();
+        newPostForm.classList.add('hidden');
+        searchBar.classList.remove('hidden');
+        input.value = (str !== undefined) ? str : title;
+        input.focus();
+        renderPosts(input);
+    }
+
+    // (static) Scrolls
+    function scrollToFirst() {
+        if (document.getElementsByClassName('as-comment')[0]){
+            document.getElementsByClassName('as-comment')[0].scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+    function scrollToPinned() {
+        if (document.getElementsByClassName('pinned').length === 0) return;
+        document.getElementsByClassName('pinned')[pin_index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        pin_index = (pin_index + 1) % document.getElementsByClassName('pinned').length;
+    }
+    function hideOverlay() {
+        overlay.style.display = "none";
+        renderPosts(input)
+    }
+    // ----------------------------------------------------------------------
+    // -------------------------- Events (event) ----------------------------
+    // ----------------------------------------------------------------------
+
+    // (event) Gestion des événements
+    newPostBtn.addEventListener('click', () => writePosts());
+    closeFormBtn.addEventListener('click', () => closeForm());
+    titleInput.addEventListener('input', () => renderPosts(titleInput));
+    input.addEventListener('input', () => renderPosts(input));
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            writePosts();
+            textarea.focus();
+        }
+    });
+    PostBtn.addEventListener('click', () => createPost());
+    textarea.addEventListener("input", () => {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+    textarea.style.maxHeight = "68dvh";
+    });
+    firstBtn.addEventListener('click', scrollToFirst);
+    pinBtn.addEventListener('click', scrollToPinned);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            hideOverlay()
+        }
+    });
+}
+
+async function checkSession() {
+    const localToken = sessionStorage.getItem('token')
+    const userId = sessionStorage.getItem('userId');
+
+    if (!localToken || !userId) {
+        disconnect();
+        return false;
+    }
+
+    const userDocRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userDocRef);
+    
+    if (userSnap.exists()) {
+        const lastSeen = userSnap.data().lastSeen;
+        const fiveMinutes = 5 * 60 * 1000;
+
+        if (Date.now() - lastSeen > fiveMinutes) {
+            disconnect();
+            return false;
+        }
+
+        const dbToken = userSnap.data().sessionToken;
+
+        if (!dcodeIO.bcrypt.compareSync(localToken, dbToken)) {
+            alert("Session corrompue ou une autre session est ouverte.");
+            disconnect();
+            return false;
+        }
+        return true;
+    } else {
+        disconnect();
+        return false;
+    }
+}
+
+SeePWD.addEventListener('click', (e) => e.preventDefault())
+SeePWD.addEventListener('mousedown', (e) => {e.preventDefault() ; PWD.type = "text"; SeePWD.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M607.5-372.5Q660-425 660-500t-52.5-127.5Q555-680 480-680t-127.5 52.5Q300-575 300-500t52.5 127.5Q405-320 480-320t127.5-52.5Zm-204-51Q372-455 372-500t31.5-76.5Q435-608 480-608t76.5 31.5Q588-545 588-500t-31.5 76.5Q525-392 480-392t-76.5-31.5ZM214-281.5Q94-363 40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200q-146 0-266-81.5ZM480-500Zm207.5 160.5Q782-399 832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280q113 0 207.5-59.5Z"/></svg>'})
+SeePWD.addEventListener('mouseup', (e) => {e.preventDefault() ; PWD.type = "password"; SeePWD.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"/></svg>'})
+SeePWD.addEventListener('mouseout', (e) => {e.preventDefault() ; PWD.type = "password"; SeePWD.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"/></svg>'})
+
+SeePWDV.addEventListener('click', (e) => e.preventDefault())
+SeePWDV.addEventListener('mousedown', (e) => {e.preventDefault() ; PWDV.type = "text"; SeePWDV.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M607.5-372.5Q660-425 660-500t-52.5-127.5Q555-680 480-680t-127.5 52.5Q300-575 300-500t52.5 127.5Q405-320 480-320t127.5-52.5Zm-204-51Q372-455 372-500t31.5-76.5Q435-608 480-608t76.5 31.5Q588-545 588-500t-31.5 76.5Q525-392 480-392t-76.5-31.5ZM214-281.5Q94-363 40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200q-146 0-266-81.5ZM480-500Zm207.5 160.5Q782-399 832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280q113 0 207.5-59.5Z"/></svg>'})
+SeePWDV.addEventListener('mouseup', (e) => {e.preventDefault() ; PWDV.type = "password"; SeePWDV.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"/></svg>'})
+SeePWDV.addEventListener('mouseout', (e) => {e.preventDefault() ; PWDV.type = "password"; SeePWDV.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"/></svg>'})
+
+SignUpBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    SignUp()
+})
+
+LoginBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    Login()
+})
+
+async function SignUp() {
+    if (!(await getDocs(query(
+        collection(db, "users"),
+        where("username", "==", Name.value)
+    ))).empty) {
+        Name.classList.add('wrong')
+        return;
+    }
+
+    if (!(/^[a-zA-Z0-9_]{3,}$/.test(Name.value))) return;
+
+    const password = PWD.value;
+    if (password != PWDV.value) return;
+    if (password.length<4) return; 
+    const salt = dcodeIO.bcrypt.genSaltSync(10);
+    const hashedPassword = dcodeIO.bcrypt.hashSync(password, salt);
     try {
-        await addDoc(postsCol, newPost)
-        Content.value = '';
-        closeForm('');
-        console.log("Post enregistré avec succès !");
+        await addDoc(collection(db, "users"), { username: Name.value, pwd: hashedPassword });
+        Login()
     }
     catch (error) {
-        alert("Erreur lors de l'envoi : " + error.message);
+        alert("Erreur lors du sign up : " + error.message);
+    }
+}
+
+async function connect() {
+    isLoggedIn = true;
+
+    document.getElementById('Register').style.display = 'none';
+    document.getElementById('MainContent').style.display = 'block';
+
+    startApp(); 
+}
+
+window.onload = () => {
+    console.log('loading')
+    if (sessionStorage.getItem('authenticated') === 'true') {
+        console.log('authenticated')
+
+        let check = checkSession()
+        if(check) {
+            console.log('session checked')
+            connect();
+        }
     }
 };
 
-// (data) Changement du statut d'un post
-/* Structure without any db and without push
-function statusChange(Status, post) {
-    if (Status.classList.contains('status-success')) {
-        Status.classList.remove('status-success');
-        Status.classList.add('status-pending');
-        Status.textContent = 'En attente';
-    } else {
-        Status.classList.remove('status-pending');
-        Status.classList.add('status-success');
-        Status.textContent = 'Résolu';
-    }
-} */
-
-async function statusChange(Status, post) {
-
-    const postRef = doc(postsCol, post.id);
-    const newStatus = post.status === 'success' ? 'pending' : 'success'
-
-    try {
-        await updateDoc(postRef,{
-            status: newStatus
-        });
-    }
-    catch (error) {
-        alert("Erreur lors du changement de status : " + error.message);
-    }
+function hashToken(Token) {
+    const salt = dcodeIO.bcrypt.genSaltSync(10);
+    const hashedToken = dcodeIO.bcrypt.hashSync(Token, salt);
+    return hashedToken
 }
 
-// (data) Ajout d'un commentaire à un post
-/* Structure without any db
-function postComment(post, chatInput) {
-    if (chatInput.value.trim() === "") return;
-    post.comments.push({
-        user: "Anonyme",
-        content: chatInput.value,
-        pinned: false
-    });
-    chatInput.value = "";
-    showOverlay(post);
-} */
+let timeout = false
 
-async function postComment(post, chatInput) {
-    if (chatInput.value.trim() === "") return;
-    const postRef = doc(postsCol, post.id)
-    const newComment = {
-        user: "Anonyme",
-        content: chatInput.value,
-        pinned: false,
-        date: new Date()
-    };
-    try {
-        await updateDoc(postRef, {
-            comments: arrayUnion(newComment)
-        }) 
-        chatInput.value = "";
-        const Comments = document.getElementsByClassName('user-comment');
-        if (Comments.length > 0) {
-            Comments[Comments.length - 1].scrollIntoView({behavior: 'smooth'});
+async function Login() {
+    if(timeout) return;
+
+    const username = Name.value;
+    const password = PWD.value;
+
+    const q = query(collection(db, "users"), where("username", "==", username));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userData = userDoc.data();
+
+        if (dcodeIO.bcrypt.compareSync(password, userData.pwd)) {
+            const newToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+            
+            // On met à jour le token dans la DB
+            await updateDoc(doc(db, "users", userDoc.id), {
+                sessionToken: hashToken(newToken)
+            });
+
+            // On stocke tout en local
+            sessionStorage.setItem('token', newToken);
+            sessionStorage.setItem('username', username);
+            sessionStorage.setItem('userId', userDoc.id);
+            sessionStorage.setItem('authenticated', 'true');
+            sessionStorage.setItem('loginTime', Date.now());
+
+            connect();
+        }
+        else {
+            PWD.classList.add('wrong')
+            timeout = true
+            setTimeout(() => { timeout = false; }, 1000);
+
         }
     }
-    catch (error) {
-        alert("Erreur lors de l'envois du commentaire : " + error.message);
+    else{
+        Name.classList.add('wrong')
     }
 }
 
-async function deletePost(post) {
-    if (confirm("Voulez-vous VRAIMENT supprimer ce POST ? ")) {
-        const postRef = doc(postsCol, post.id)
+const SignMethod = document.getElementById('SignMethod')
 
-        try {
-            await deleteDoc(postRef)
-            hideOverlay()
+function ChangeSignMethod(e) {
+    e.preventDefault()
+    
+    const p = document.getElementById('PWD_label')
+    const a = document.getElementById('SignMethod')
+
+    document.getElementById('SignUpInputs').classList.toggle('hidden')
+    document.getElementById('LoginInputs').classList.toggle('hidden')
+    
+    if (p.textContent.trim() === "Enter your password :") {
+        p.textContent = "Create your password :"
+        a.textContent = "Already have an account ? : Login"
+    }
+    else {
+        p.textContent = "Enter your password :"
+        a.textContent = "No account ? : Create an account"
+    }
+}
+SignMethod.addEventListener('click', (e) => ChangeSignMethod(e))
+
+async function disconnect() {
+
+    await updateDoc(
+        doc(db, "users", sessionStorage.getItem("userId")),
+        {
+            sessionToken: deleteField()
         }
-        catch (error) {
-            alert("Erreur lors de la suppression du post : " + error.message);
-        }
-    }
+    );
+    isLoggedIn = false;
+    sessionStorage.clear()
+    location.reload();
 }
 
-// ----------------------------------------------------------------------
-// ---------- Fonctions de d'interaction sans données (static) ----------
-// ----------------------------------------------------------------------
+document.getElementById('Disconnect').addEventListener('click', () => disconnect())
 
-// (static) Affichage la zone de création de post 
-function writePosts() {
-    const title = input.value.trim();
-    searchBar.classList.add('hidden');
-    newPostForm.classList.remove('hidden');
-    Title.value = title;
-    Title.focus();
-}
-
-// (static) Fermeture de la zone de création de post
-function closeForm(str) {
-    const title = Title.value.trim();
-    newPostForm.classList.add('hidden');
-    searchBar.classList.remove('hidden');
-    input.value = (str !== undefined) ? str : title;
-    input.focus();
-    renderPosts(input);
-}
-
-// (static) Scrolls
-function scrollToFirst() {
-    if (document.getElementsByClassName('as-comment')[0]){
-        document.getElementsByClassName('as-comment')[0].scrollIntoView({ behavior: 'smooth' });
-    }
-}
-function scrollToPinned() {
-    if (document.getElementsByClassName('pinned').length === 0) return;
-    document.getElementsByClassName('pinned')[pin_index].scrollIntoView({ behavior: 'smooth', block: 'center' });
-    pin_index = (pin_index + 1) % document.getElementsByClassName('pinned').length;
-}
-function hideOverlay() {
-    overlay.style.display = "none";
-    renderPosts(input)
-}
-// ----------------------------------------------------------------------
-// -------------------------- Events (event) ----------------------------
-// ----------------------------------------------------------------------
-
-// (event) Gestion des événements
-newPostBtn.addEventListener('click', () => writePosts());
-closeFormBtn.addEventListener('click', () => closeForm());
-titleInput.addEventListener('input', () => renderPosts(titleInput));
-input.addEventListener('input', () => renderPosts(input));
-input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        writePosts();
-        textarea.focus();
-    }
-});
-PostBtn.addEventListener('click', () => createPost());
-textarea.addEventListener("input", () => {
-  textarea.style.height = "auto";
-  textarea.style.height = textarea.scrollHeight + "px";
-  textarea.style.maxHeight = "68dvh";
-});
-firstBtn.addEventListener('click', scrollToFirst);
-pinBtn.addEventListener('click', scrollToPinned);
-overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-        hideOverlay()
-    }
-});
+PWD.addEventListener('input', () => {
+    PWD.classList.remove('wrong')
+})
+Name.addEventListener('input', () => {
+    PWD.classList.remove('wrong')
+    Name.classList.remove('wrong')
+})
