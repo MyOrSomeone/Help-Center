@@ -80,6 +80,8 @@ const SeePWDV = document.getElementById('SeePasswordVerif')
 const SignUpBtn = document.getElementById('SignUp')
 const LoginBtn = document.getElementById('LogIn')
 
+const AdminMenu = document.getElementById('AdminMenu')
+
 // Login
 let isLoggedIn = false;
 const NameDisplay = document.getElementById('Name_Display')
@@ -115,6 +117,7 @@ function startApp() {
 
     // Récupération des données depuis Firebase Firestore
     onSnapshot(postsCol, (snapshot) => {
+        adminMenu();
         if (!checkSession()) return;
 
         // On transforme les documents Firebase en tableau JS
@@ -285,7 +288,7 @@ function startApp() {
     }
 
     // (render) Affichage de l'overlay d'un post
-    function showOverlay(post) {
+    async function showOverlay(post) {
 
         const oldChatInput = document.getElementById('ChatInput');
         let savedValue = "";
@@ -294,6 +297,10 @@ function startApp() {
         isTyping = !!(oldChatInput && document.activeElement === oldChatInput);
         console.log('before : ' + isTyping)
 
+        checkSession()
+        const userId = sessionStorage.getItem('userId');
+        const snap = await getDoc(doc(db, "users", userId));
+        const currentUser = sessionStorage.getItem('username');
         currentOpenedPostId = post.id;
         PostPreview.innerHTML = ` 
                     <div class="post-header">
@@ -317,10 +324,11 @@ function startApp() {
                                 <p>${formatComment(comment.content)}</p>
                             </article>
                             
+                            ${checkSession() && comment.user === currentUser || snap.data().superAdmin || snap.data().admin ? `
                             <button class="delete-btn">
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#e3e3e3"><path d="m376-300 104-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56Zm-96 180q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520Zm-400 0v520-520Z"/></svg>
                             </button>
-                            
+                            ` : ''}
                         </div>`).join('')}
                     </div>
                     <div class="chat">
@@ -342,10 +350,32 @@ function startApp() {
         chatIpt.value = savedValue
 
         const commentDeleteBtns = PostPreview.querySelectorAll('.delete-btn');
+        // À l'intérieur de showOverlay(post)
         commentDeleteBtns.forEach((btn, index) => {
-            btn.onclick = () => {
+            btn.onclick = async () => {
                 if (!checkSession()) return;
-                deleteComment(post, post.comments[index]);
+
+                try {
+                    // Ici, on utilise post (l'objet complet de l'overlay)
+                    const commentToDelete = post.comments[index];
+                    
+                    const userId = sessionStorage.getItem('userId');
+                    const userSnap = await getDoc(doc(db, "users", userId));
+                    const userData = userSnap.data();
+
+                    // Vérification des droits
+                    if (commentToDelete.user === userData.username || userData.admin || userData.superAdmin) {
+                        // APPEL CORRIGÉ : On passe l'objet 'post' et le 'comment'
+                        await deleteComment(post, commentToDelete);
+                        
+                        // Petit hack visuel : on cache le commentaire immédiatement
+                        btn.closest('.user-comment').style.display = 'none';
+                    } else {
+                        alert("Action non autorisée");
+                    }
+                } catch (error) {
+                    console.error("Erreur dans le bouton supprimer :", error);
+                }
             };
         });
         
@@ -412,8 +442,9 @@ function startApp() {
 
         Status.addEventListener('click', () => statusChange(Status, post));
 
-        deleteBtn.onclick = () => deletePost(post);
-        
+        deleteBtn.classList.add('hidden')
+        if (checkSession() && post.user === currentUser || snap.data().superAdmin || snap.data().admin) {deleteBtn.onclick = () => deletePost(post); deleteBtn.classList.remove('hidden')}
+
         Prism.highlightAll();
     }
 
@@ -662,6 +693,137 @@ function startApp() {
     closeBTN.addEventListener('click', () => {
         hideOverlay()
     });
+
+    async function checkAdminPrivileges() {
+        const userId = sessionStorage.getItem('userId');
+        const snap = await getDoc(doc(db, "users", userId));
+        return snap.exists() && (snap.data().admin || snap.data().superAdmin);
+    }
+
+    window.toggleMute = async (targetUid, currentStatus) => {
+        if (!(await checkAdminPrivileges())) return alert("Action interdite");
+        await updateDoc(doc(db, "users", targetUid), { isMuted: !currentStatus });
+        adminMenu(); // Rafraîchit le menu
+    };
+
+    window.toggleBan = async (targetUid, currentStatus) => {
+        // Seul un Super Admin devrait pouvoir Ban (Sécurité supplémentaire)
+        const userId = sessionStorage.getItem('userId');
+        const snap = await getDoc(doc(db, "users", userId));
+        if (!snap.data().superAdmin) return alert("Privilèges Super Admin requis");
+
+        await updateDoc(doc(db, "users", targetUid), { 
+            isBanned: !currentStatus,
+            sessionToken: null // On force la déconnexion si banni
+        });
+        adminMenu();
+    };
+
+    window.promoteAdmin = async (targetUid, isCurrentlyAdmin) => {
+        const userId = sessionStorage.getItem('userId');
+        const snap = await getDoc(doc(db, "users", userId));
+        if (!snap.data().superAdmin) return alert("Action réservée au Super Admin");
+
+        await updateDoc(doc(db, "users", targetUid), { admin: !isCurrentlyAdmin });
+        adminMenu();
+    };
+
+    window.deleteAllContent = async (targetUsername) => {
+        const userId = sessionStorage.getItem('userId');
+        const snap = await getDoc(doc(db, "users", userId));
+        if (!snap.data().superAdmin) return alert("Privilèges Super Admin requis");
+
+        if (!(await checkAdminPrivileges())) return;
+        if (!confirm(`Supprimer tout le contenu de ${targetUsername} ?`)) return;
+
+        // 1. Supprimer les posts
+        const postsQ = query(collection(db, "posts"), where("user", "==", targetUsername));
+        const postsSnap = await getDocs(postsQ);
+        postsSnap.forEach(async (d) => await deleteDoc(d.ref));
+
+        // 2. Supprimer les commentaires
+        // (Si tes commentaires sont dans une collection globale)
+        const commsQ = query(collection(db, "comments"), where("user", "==", targetUsername));
+        const commsSnap = await getDocs(commsQ);
+        commsSnap.forEach(async (d) => await deleteDoc(d.ref));
+
+        alert("Nettoyage effectué");
+        adminMenu();
+    };
+
+    const adminBTN = document.getElementById('AdminToggleBtn')
+    adminBTN.addEventListener('click', () => {
+        document.getElementById('AdminOverlay').classList.remove('hidden');
+    });
+
+    async function adminMenu() {
+        const userId = sessionStorage.getItem('userId');
+        if (!userId) return;
+
+        const userDocRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            if (userData.admin === true || userData.superAdmin === true) {
+                
+                // Afficher l'overlay
+                // document.getElementById('AdminOverlay').classList.remove('hidden');
+                adminBTN.classList.remove('hidden');
+
+                const usersQuery = await getDocs(collection(db, "users"));
+                let userRows = "";
+
+                usersQuery.forEach((uDoc) => {
+                    const u = uDoc.data();
+                    const uId = uDoc.id;
+                    const isOnline = u.sessionToken ? "🟢" : "🔴";
+                    const role = u.superAdmin ? "Super Admin" : (u.admin ? "Admin" : "User");
+                    
+                    // On utilise tes classes CSS : tagg, btn, delete, first...
+                    userRows += `
+                        <tr>
+                            <td style="padding:10px">${isOnline} <strong>${u.username}</strong></td>
+                            <td><span class="tagg ${u.admin ? 'first' : ''}">${role}</span></td>
+                            <td>
+                                <button class="tagg" onclick="window.toggleMute('${uId}', ${u.isMuted || false})">
+                                    ${u.isMuted ? 'Mute 🤐' : 'Mute'}
+                                </button>
+                                ${userData.superAdmin ? `
+                                    <button class="tagg delete" onclick="window.deleteAllContent('${u.username}')">Wipe</button>
+                                    <button class="tagg ${u.isBanned ? 'first' : 'delete'}" onclick="window.toggleBan('${uId}', ${u.isBanned || false})">
+                                        ${u.isBanned ? 'Unban' : 'Ban'}
+                                    </button>
+                                    <button class="tagg" onclick="window.promoteAdmin('${uId}', ${u.admin || false})">
+                                        Admin +/-
+                                    </button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('AdminContent').innerHTML = `
+                    <table style="width:100%; text-align:left; border-spacing: 0 10px;">
+                        <thead>
+                            <tr style="color:var(--text-muted); font-size:0.8rem">
+                                <th>USER</th>
+                                <th>RANG</th>
+                                <th>ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>${userRows}</tbody>
+                    </table>
+                `;
+            }
+        }
+    };
+
+    document.getElementById('CloseAdmin').onclick = () => {
+        document.getElementById('AdminOverlay').classList.add('hidden');
+    };
+
+    adminMenu()
 }
 
 async function checkSession() {
@@ -759,7 +921,6 @@ async function SignUp() {
         }
     }
 }
-
 async function connect() {
     isLoggedIn = true;
 
@@ -805,6 +966,11 @@ async function Login() {
     if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
+
+        if (userData.isBanned) {
+            alert("Ce compte est banni.");
+            return; // On bloque l'accès
+        }
 
         if (dcodeIO.bcrypt.compareSync(password, userData.pwd)) {
             const newToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -878,8 +1044,8 @@ PWD.addEventListener('input', () => {
 })
 PWDV.addEventListener('input', () => {
     PWDV.classList.remove('wrong')
-})
+});
 Name.addEventListener('input', () => {
     PWD.classList.remove('wrong')
     Name.classList.remove('wrong')
-})
+});

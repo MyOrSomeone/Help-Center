@@ -820,3 +820,122 @@ font-weight: 600;
     content: none !important;
   }
 }
+
+.admin-container { padding: 20px; background: #1e1e1e; border-radius: 8px; color: white; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+.admin-actions button { margin-right: 5px; padding: 5px 10px; cursor: pointer; }
+button.danger { background: #ff4444; color: white; border: none; }
+.badge { background: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+
+/* Bouton flottant Admin */
+#AdminToggleBtn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#AdminToggleBtn:hover { transform: scale(1.1) rotate(45deg); }
+
+/* Overlay Admin */
+#AdminOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.admin-modal {
+    background: var(--bg);
+    width: 100%;
+    max-width: 900px;
+    max-height: 80vh;
+    border-radius: 2rem;
+    border: 2px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.admin-header {
+    padding: 1.5rem 2rem;
+    background: var(--bg-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+#AdminContent {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+/* Table Style */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text);
+}
+
+.admin-table th {
+    text-align: left;
+    padding: 1rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.admin-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.status-dot { font-size: 0.7rem; margin-right: 5px; }
+
+/* Badges de rôle */
+.role-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+.role-super { background: var(--accent); color: white; }
+.role-admin { background: var(--secondary); color: white; }
+.role-user { background: var(--bg-light); color: var(--text-muted); }
+
+/* Actions */
+.admin-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.admin-actions button {
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.8rem;
+    border: 1px solid var(--border);
+    background: var(--bg-dark);
+    color: var(--text);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.admin-actions button:hover { border-color: var(--accent); }
+.admin-actions button.btn-danger { color: var(--danger); border-color: var(--danger); }
+.admin-actions button.btn-danger:hover { background: var(--danger); color: white; }

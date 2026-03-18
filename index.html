@@ -98,7 +98,20 @@
                 <button id="SignMethod">No account ? : Create an account</button>
             </form>
         </section>
-        
+
+        <section id="AdminOverlay" class="hidden">
+            <div class="admin-modal">
+                <header class="admin-header">
+                    <h2>Panel d'administration</h2>
+                    <button id="CloseAdmin">Fermer</button>
+                </header>
+                <div id="AdminContent">
+                    </div>
+            </div>
+        </section>
+        <button id="AdminToggleBtn" class="hidden" onclick="window.adminMenu()">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 48-72-124 103-79q-1-6-1-13t1-13l-103-79 72-124 119 48q11-8 23-15t25-12l16-128h144l16 128q13 5 24.5 12t22.5 15l119-48 72 124-103 79q1 6 1 13t-1 13l103 79-72 124-119-48q-11 8-23 15t-25 12l16 128H370Zm72-120h76l12-101q28-7 51.5-21t43.5-37l96 39 37-64-85-65q4-14 5.5-28.5t1.5-30.5q0-16-2-30.5t-6-28.5l85-65-37-64-96 39q-20-23-43.5-37T530-659l-12-101h-76l-12 101q-28 7-51.5 21t-43.5 37l-96-39-37 64 85 65q-4 14-5.5 28.5t-1.5 30.5q0 16 2 30.5t6 28.5l-85 65 37 64 96-39q20 23 43.5 37t43.5 21l12 101Zm40-160q50 0 85-35t35-85q0-50-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35ZM480-480Z"/></svg>
+        </button>
     </main>
 </body>
 </html>
