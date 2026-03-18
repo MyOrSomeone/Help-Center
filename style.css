@@ -90,7 +90,7 @@ p { color: var(--text-muted); }
 }
 #SearchInput {
   background-color: var(--bg-dark);
-  padding: 1rem 3.5rem;
+  padding: 1rem 10rem 1rem 3.5rem;
   border: 2px solid var(--border);
   border-radius: 1.25rem;
   width: 100%;
@@ -184,12 +184,43 @@ p { color: var(--text-muted); }
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 2;
 }
+#CloseOverlay{
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  height: 48px;
+  width: 48px;
+  border-radius: 4rem;
+  background-color: var(--bg-light);
+  border: 2px solid var(--border);
+  top: -1rem;
+  left: -1rem;
+  transition: all 0.2s ease;
+}
+#PostPreview:hover ~ #CloseOverlay{
+  border: 2px solid var(--accent);
+  transform: translateY(-2px);
+}
+#CloseOverlay:hover{
+  border: 2px solid var(--accent);
+  transform: scale(1.1);
+}
+#CloseOverlay:active{
+  border: 2px solid var(--accent);
+  transform: scale(0.9);
+}
+.cooldown{
+  background-color: gray !important;
+}
+
 .overlay-wrapper {
   position: relative;
   width: 100%;
   display: flex;
-  gap: 1rem; /* Espace entre la carte et les boutons */
 }
 
 .as-comment{
@@ -216,7 +247,7 @@ p { color: var(--text-muted); }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 0.5rem 0;
+  padding: 0.5rem 0 0.5rem 1rem;
 }
 
 .top {
@@ -745,6 +776,7 @@ font-weight: 600;
     flex-direction: row; /* Les boutons d'action (delete/pin) se mettent côte à côte */
     justify-content: center;
     gap: 1rem;
+    padding-top: 1rem;
   }
 
   .top {

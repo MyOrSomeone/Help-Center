@@ -62,6 +62,7 @@ const PostBtn = document.getElementById('Post');
 
 const PostPreview = document.getElementById('PostPreview');
 const overlay = document.getElementById("PostOverlay");
+const closeBTN = document.getElementById("CloseOverlay")
 
 const firstBtn = document.getElementById('FirstBtn');
 const pinBtn = document.getElementById('PinBtn');
@@ -69,6 +70,7 @@ const deleteBtn = document.getElementById('DeleteBtn');
 
 let pin_index = 0;
 let chatInput = document.getElementById('ChatInput');
+let isTyping = false;
 
 const Name = document.getElementById('Name')
 const PWD = document.getElementById('Password')
@@ -90,6 +92,7 @@ let filter_tag = [];
 let filter_title = [];
 let filter_description = [];
 let filteredPosts = [];
+let onCooldown = false
 
 let currentOpenedPostId = null;
 
@@ -182,7 +185,8 @@ function startApp() {
                 </div>`;
             postsContainer.appendChild(postElement);
             postElement.addEventListener('click', () => {
-                showOverlay(post);     
+                showOverlay(post);  
+                overlay.style.display = "flex";   
                 const Comments = document.getElementsByClassName('user-comment');
                 if (Comments.length > 0) {
                     Comments[Comments.length - 1].scrollIntoView();
@@ -282,6 +286,14 @@ function startApp() {
 
     // (render) Affichage de l'overlay d'un post
     function showOverlay(post) {
+
+        const oldChatInput = document.getElementById('ChatInput');
+        let savedValue = "";
+        if (oldChatInput) {savedValue = oldChatInput.value}
+
+        isTyping = !!(oldChatInput && document.activeElement === oldChatInput);
+        console.log('before : ' + isTyping)
+
         currentOpenedPostId = post.id;
         PostPreview.innerHTML = ` 
                     <div class="post-header">
@@ -323,8 +335,11 @@ function startApp() {
                 `;
 
         // on affiche l'overlay
-        overlay.style.display = "flex";
+        // overlay.style.display = "flex";
         pin_index = 0;
+
+        const chatIpt = document.getElementById('ChatInput');
+        chatIpt.value = savedValue
 
         const commentDeleteBtns = PostPreview.querySelectorAll('.delete-btn');
         commentDeleteBtns.forEach((btn, index) => {
@@ -341,6 +356,12 @@ function startApp() {
                 pinComment(post, index);
             };
         });
+
+        if (isTyping) {
+            console.log("focus plss")
+            chatIpt.focus();
+            chatIpt.selectionStart = chatIpt.selectionEnd = chatIpt.value.length;
+        }
 
         /* suppression
         deleteBtn.onclick = () => {
@@ -419,6 +440,7 @@ function startApp() {
 
     async function createPost() {
         if (!checkSession()) return;
+        if (onCooldown) return;
         const newPost = {
             title: Title.value,
             description: Content.value,
@@ -437,6 +459,13 @@ function startApp() {
         catch (error) {
             alert("Erreur lors de l'envoi : " + error.message);
         }
+
+        onCooldown=true
+        SendBtn.classList.add('cooldown')
+        setTimeout(() => {
+            onCooldown=false
+            SendBtn.classList.remove('cooldown')
+        }, 4000);
     };
 
     // (data) Changement du statut d'un post
@@ -483,6 +512,7 @@ function startApp() {
 
     async function postComment(post, chatInput) {
         if (!checkSession()) return;
+        if (onCooldown) return;
         if (chatInput.value.trim() === "") return;
         const postRef = doc(postsCol, post.id)
         const newComment = {
@@ -504,6 +534,14 @@ function startApp() {
         catch (error) {
             alert("Erreur lors de l'envois du commentaire : " + error.message);
         }
+
+        document.getElementById("ChatInput").value = ""
+        onCooldown=true
+        SendBtn.classList.add('cooldown')
+        setTimeout(() => {
+            onCooldown=false
+            SendBtn.classList.remove('cooldown')
+        }, 4000);
     }
 
     async function deletePost(post) {
@@ -617,9 +655,12 @@ function startApp() {
     firstBtn.addEventListener('click', scrollToFirst);
     pinBtn.addEventListener('click', scrollToPinned);
     overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
+        if (e.target === overlay || e.target === document.getElementById("Utils")) {
             hideOverlay()
         }
+    });
+    closeBTN.addEventListener('click', () => {
+        hideOverlay()
     });
 }
 
@@ -679,27 +720,43 @@ LoginBtn.addEventListener('click', (e) => {
 })
 
 async function SignUp() {
-    if (!(await getDocs(query(
-        collection(db, "users"),
-        where("username", "==", Name.value)
-    ))).empty) {
-        Name.classList.add('wrong')
-        return;
-    }
-
-    if (!(/^[a-zA-Z0-9_]{3,}$/.test(Name.value))) return;
-
+    const username = Name.value.replaceAll("-", "_").replaceAll(" ", "_").toLowerCase().replaceAll(/_+/gm, "_").replaceAll(/^_|_$/gm, "");
     const password = PWD.value;
-    if (password != PWDV.value) return;
-    if (password.length<4) return; 
-    const salt = dcodeIO.bcrypt.genSaltSync(10);
-    const hashedPassword = dcodeIO.bcrypt.hashSync(password, salt);
+
+    // Validation basique
+    if (!/^[a-zA-Z0-9_]{3,}$/.test(username)) {Name.classList.add('wrong'); return};
+    if (password !== PWDV.value) {PWDV.classList.add('wrong'); return};
+    if (password.length < 4) {PWD.classList.add('wrong'); return};
+
+    const userRef = doc(db, "users", username);
+
     try {
-        await addDoc(collection(db, "users"), { username: Name.value, pwd: hashedPassword });
-        Login()
-    }
-    catch (error) {
-        alert("Erreur lors du sign up : " + error.message);
+        await runTransaction(db, async (transaction) => {
+            const userSnap = await transaction.get(userRef);
+
+            if (userSnap.exists()) {
+                throw new Error("USERNAME_TAKEN");
+            }
+
+            // Hashing
+            const salt = dcodeIO.bcrypt.genSaltSync(10);
+            const hashedPassword = dcodeIO.bcrypt.hashSync(password, salt);
+
+            transaction.set(userRef, {
+                username: username,
+                pwd: hashedPassword,
+                createdAt: Date.now()
+            });
+        });
+
+        Login();
+
+    } catch (error) {
+        if (error.message === "USERNAME_TAKEN") {
+            Name.classList.add('wrong');
+        } else {
+            alert("Erreur lors du sign up : " + error.message);
+        }
     }
 }
 
@@ -733,10 +790,13 @@ function hashToken(Token) {
 
 let timeout = false
 
+// TODO : ajouter les class wrong et les suppr après modif
+// faire en sorte que l'oeil marche sur tel
+
 async function Login() {
     if(timeout) return;
 
-    const username = Name.value;
+    const username = Name.value.replaceAll("-", "_").replaceAll(" ", "_").toLowerCase().replaceAll(/_+/gm, "_").replaceAll(/^_|_$/gm, "");
     const password = PWD.value;
 
     const q = query(collection(db, "users"), where("username", "==", username));
@@ -814,6 +874,10 @@ document.getElementById('Disconnect').addEventListener('click', () => disconnect
 
 PWD.addEventListener('input', () => {
     PWD.classList.remove('wrong')
+    PWDV.classList.remove('wrong')
+})
+PWDV.addEventListener('input', () => {
+    PWDV.classList.remove('wrong')
 })
 Name.addEventListener('input', () => {
     PWD.classList.remove('wrong')
